@@ -4,9 +4,11 @@ import java.io.PrintWriter;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.Collections;
 import java.util.Comparator;
@@ -43,53 +45,40 @@ public class ScheduleGenerator {
         }
     }
 
-    public static int timeSpentPerWeek(List<CourseSlot> shcedule){
-        int time = 0;
-
-        LocalTime sunStartTime = LocalTime.of(4, 0);
-        LocalTime sunEndTime = LocalTime.of(9, 0);
-        LocalTime mondStartTime = LocalTime.of(4, 0);
-        LocalTime mondEndTime = LocalTime.of(9, 0);
-        LocalTime tuesStartTime = LocalTime.of(4, 0);
-        LocalTime tuesEndTime = LocalTime.of(9, 0);
-        LocalTime wednesdayStartTime = LocalTime.of(4, 0);
-        LocalTime wednesdayEndTime = LocalTime.of(9, 0);
-        LocalTime thursStartTime = LocalTime.of(4, 0);
-        LocalTime thursEndTime = LocalTime.of(9, 0);
-
-        for(CourseSlot slot: shcedule){
-            if(slot.getDayOfWeek() == DayOfWeek.valueOf("SUNDAY")){
-                sunStartTime = slot.getStartTime().isBefore(sunStartTime) ? slot.getStartTime(): sunStartTime;
-                sunEndTime = slot.getEndTime().isAfter(sunEndTime) ? slot.getEndTime(): sunEndTime;
-            }
-            if(slot.getDayOfWeek() ==DayOfWeek.valueOf("MONDAY")){
-                mondStartTime = slot.getStartTime().isBefore(mondStartTime) ? slot.getStartTime(): mondStartTime;
-                mondEndTime = slot.getEndTime().isAfter(mondEndTime) ? slot.getEndTime(): mondEndTime;
-                
-            }
-            if(slot.getDayOfWeek() ==DayOfWeek.valueOf("TUESDAY")){
-                tuesStartTime = slot.getStartTime().isBefore(tuesStartTime) ? slot.getStartTime(): tuesStartTime;
-                tuesEndTime = slot.getEndTime().isAfter(tuesEndTime) ? slot.getEndTime(): tuesEndTime;
-            }
-            if(slot.getDayOfWeek() ==DayOfWeek.valueOf("WEDNESDAY")){
-                wednesdayStartTime = slot.getStartTime().isBefore(wednesdayStartTime) ? slot.getStartTime(): wednesdayStartTime;
-                wednesdayEndTime = slot.getEndTime().isAfter(wednesdayEndTime) ? slot.getEndTime(): wednesdayEndTime;
-            }
-            if(slot.getDayOfWeek() == DayOfWeek.valueOf("THURSDAY")){
-                thursStartTime = slot.getStartTime().isBefore(thursStartTime) ? slot.getStartTime(): thursStartTime;
-                thursEndTime = slot.getEndTime().isAfter(thursEndTime) ? slot.getEndTime(): thursEndTime;
-            }
-        }
-
-        time += sunEndTime.toSecondOfDay() - sunStartTime.toSecondOfDay();
-        time += mondEndTime.toSecondOfDay() - mondStartTime.toSecondOfDay();
-        time += tuesEndTime.toSecondOfDay() - tuesStartTime.toSecondOfDay();
-        time += wednesdayEndTime.toSecondOfDay() - wednesdayStartTime.toSecondOfDay();
-        time += thursEndTime.toSecondOfDay() - thursStartTime.toSecondOfDay();
-
-        return time;
+    public static int timeSpentPerWeek(List<CourseSlot> schedule) {
+    HashMap<DayOfWeek, LocalTime[]> dayTimings = new HashMap<>();
+    
+    for (DayOfWeek day : DayOfWeek.values()) {
+        dayTimings.put(day, new LocalTime[]{null, null});
     }
+    
+    for (CourseSlot slot : schedule) {
+        DayOfWeek day = slot.getDayOfWeek();
+        LocalTime[] times = dayTimings.get(day);
+        
+        if (times[0] == null || slot.getStartTime().isBefore(times[0])) {
+            times[0] = slot.getStartTime();
+        }
+        
 
+        if (times[1] == null || slot.getEndTime().isAfter(times[1])) {
+            times[1] = slot.getEndTime();
+        }
+    }
+    
+    int totalTimeInSeconds = 0;
+    
+    for (Map.Entry<DayOfWeek, LocalTime[]> entry : dayTimings.entrySet()) {
+        LocalTime[] times = entry.getValue();
+        
+        if (times[0] != null && times[1] != null) {
+            totalTimeInSeconds += times[1].toSecondOfDay() - times[0].toSecondOfDay();
+        }
+    }
+    
+    return totalTimeInSeconds;
+    }
+    
     public static List<List<Course>> sectionSpecificCombinations(List<Course> courses){
         int k = courses.size();
         List<List<Course>> possibleCombinations = new ArrayList<>();
@@ -110,8 +99,8 @@ public class ScheduleGenerator {
 
                 List<List<Course>> newPathesAhead = new ArrayList<>();
                 for (List<Course> path : possiblePathesAhead) {
-                    newPathesAhead.add(new ArrayList<>(path)); // Create a modifiable copy
-                    newPathesAhead.get(newPathesAhead.size() - 1).add(currentCourse); // Modify the copy
+                    newPathesAhead.add(new ArrayList<>(path));
+                    newPathesAhead.get(newPathesAhead.size() - 1).add(currentCourse);
                 }
 
                 possibleCombinations.addAll(newPathesAhead);
@@ -254,7 +243,7 @@ public class ScheduleGenerator {
         try (PrintWriter writer = new PrintWriter(new File(filename))) {
             for (int i = 0; i < schedules.size(); i++) {
                 writer.println("Schedule " + (i + 1) + ": " + schedules.get(i).size() + " Slots");
-                writer.println("Time spent on campus per week: " + timeSpentPerWeek(schedules.get(i))/(60*60) + " hours");
+                writer.println("Time spent on campus per week: " + timeSpentPerWeek(schedules.get(i))/(60.0*60.0) + " hours");
                 printTimetableToFile(schedules.get(i), writer);
                 writer.println();
             }
@@ -320,7 +309,7 @@ public class ScheduleGenerator {
         List<Course> courses = new ArrayList<>();
 
         // All available time slots
-
+        /*
         courses.add(new Course("Compilers: Lecture",
             Collections.singletonList(new String[] { "TUESDAY", "09:00", "10:30" }
             )));
@@ -399,7 +388,137 @@ public class ScheduleGenerator {
             // new String[] { "WEDNESDAY","12:30", "14:00" }//, 
             new String[] { "WEDNESDAY", "14:15", "15:45" }
             )));                        
+        */
         
+        // ML
+        courses.add(new Course("ML: Lecture", 
+            Collections.singletonList(new String[] { "MONDAY", "09:00", "10:30" })
+        ));
+        courses.add(new Course("ML: Tutorial", 
+            Arrays.asList(
+                new String[] { "THURSDAY", "13:15", "14:00" },
+                new String[] { "MONDAY", "14:15", "15:00" },
+                new String[] { "MONDAY", "15:00", "15:45" }
+            )
+        ));
+        courses.add(new Course("ML: Lab", 
+            Arrays.asList(
+                new String[] { "TUESDAY", "14:15", "15:45" },
+                new String[] { "TUESDAY", "14:15", "15:45" },
+                new String[] { "TUESDAY", "14:15", "15:45" },
+                new String[] { "TUESDAY", "12:30", "14:00" },
+                new String[] { "TUESDAY", "12:30", "14:00" }
+            )
+        ));
+
+        // // CA
+        // courses.add(new Course("CA: Lecture", 
+        //     Collections.singletonList(new String[] { "MONDAY", "10:45", "12:15" })
+        // ));
+        // courses.add(new Course("CA: Tutorial", 
+        //     Collections.singletonList(new String[] { "WEDNESDAY", "15:00", "15:45" })
+        // ));
+        // courses.add(new Course("CA: Lab", 
+        //     Collections.singletonList(new String[] { "MONDAY", "12:30", "14:00" })
+        // ));
+
+        // Crypto
+        courses.add(new Course("Crypto: Lecture", 
+            Arrays.asList(
+                new String[] { "MONDAY", "12:30", "14:00" },
+                new String[] { "MONDAY", "14:15", "15:45" }
+            )
+        ));
+        courses.add(new Course("Crypto: Tutorial", 
+            Arrays.asList(
+                new String[] { "WEDNESDAY", "14:15", "15:45" },
+                new String[] { "THURSDAY", "10:45", "12:15" },
+                new String[] { "THURSDAY", "12:30", "14:00" },
+                new String[] { "WEDNESDAY", "12:30", "14:00" },
+                new String[] { "THURSDAY", "09:00", "10:30" }
+            )
+        ));
+
+        // OS
+        courses.add(new Course("OS: Lecture",
+            Arrays.asList(
+                new String[] { "THURSDAY", "09:00", "10:30" },
+                new String[] { "THURSDAY", "12:30", "14:00" }
+            )
+        ));
+
+        courses.add(new Course("OS: Tutorial", 
+            Arrays.asList(
+                new String[] { "MONDAY", "14:15", "15:00" },
+                new String[] { "MONDAY", "15:00", "15:45" },
+                new String[] { "TUESDAY", "09:45", "10:30" },
+                new String[] { "TUESDAY", "14:15", "15:00" },
+                new String[] { "TUESDAY", "09:00", "09:45" }
+            )
+        ));
+        courses.add(new Course("OS: Lab", 
+            Arrays.asList(
+                new String[] { "THURSDAY", "10:45", "12:15" },
+                new String[] { "WEDNESDAY", "14:15", "15:45" },
+                new String[] { "THURSDAY", "14:15", "15:45" },
+                new String[] { "THURSDAY", "09:00", "10:30" },
+                new String[] { "WEDNESDAY", "12:30", "14:00" }
+            )
+        ));
+
+        // Embedded
+        // courses.add(new Course("Embedded: Lecture", 
+        //     Collections.singletonList(new String[] { "TUESDAY", "10:45", "12:15" })
+        // ));
+        // courses.add(new Course("Embedded: Tutorial", 
+        //     Arrays.asList(
+        //         new String[] { "THURSDAY", "12:30", "13:15" },
+        //         new String[] { "WEDNESDAY", "14:15", "15:00" }
+        //     )
+        // ));
+        // courses.add(new Course("Embedded: Lab", 
+        //     Arrays.asList(
+        //         new String[] { "TUESDAY", "09:00", "10:30" },
+        //         new String[] { "THURSDAY", "10:45", "12:15" }
+        //     )
+        // ));
+
+        // Emerging Topics
+        /*
+        courses.add(new Course("Emerging Topics: Lecture", 
+            Collections.singletonList(new String[] { "MONDAY", "10:45", "12:15" })
+        ));
+        courses.add(new Course("Emerging Topics: Tutorial", 
+            Collections.singletonList(new String[] { "WEDNESDAY", "13:15", "14:00" })
+        ));
+        courses.add(new Course("Emerging Topics: Lab", 
+            Collections.singletonList(new String[] { "TUESDAY", "12:30", "14:00" })
+        ));
+        */
+
+        // Computer Graphics
+        // /*
+        courses.add(new Course("Computer Graphics: Lecture", 
+            Collections.singletonList(new String[] { "WEDNESDAY", "10:45", "12:15" })
+        ));
+        courses.add(new Course("Computer Graphics: Tutorial", 
+            Collections.singletonList(new String[] { "WEDNESDAY", "12:30", "13:15" })
+        ));
+        courses.add(new Course("Computer Graphics: Lab", 
+            Collections.singletonList(new String[] { "WEDNESDAY", "09:00", "10:30" })
+        ));
+        // */
+
+        // // Robotics
+        // courses.add(new Course("Robotics: Lecture", 
+        //     Collections.singletonList(new String[] { "WEDNESDAY", "09:00", "10:30" })
+        // ));
+        // courses.add(new Course("Robotics: Tutorial", 
+        //     Collections.singletonList(new String[] { "TUESDAY", "15:00", "15:45" })
+        // ));
+        // courses.add(new Course("Robotics: Lab", 
+        //     Collections.singletonList(new String[] { "WEDNESDAY", "10:45", "12:15" })
+        // ));
 
 
         List<List<Course>> allPossiblePathes = sectionSpecificCombinations(courses);
@@ -423,7 +542,7 @@ public class ScheduleGenerator {
             }
         });
 
-        String scheduleTitle = "Best: No SWE, LRA";
+        String scheduleTitle = "Reqs + ML + Graphics";
         exportSchedulesToFile(scheduleTitle, schedules);
 
 
